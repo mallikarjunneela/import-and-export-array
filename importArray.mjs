@@ -39,20 +39,54 @@ initializeDbAndServer();
 //         location: dbObject.location
 //     }
 // }
-
+const validatePassword = (password) => {
+    return password.length > 4 ;
+};
 app.post("/register/", async (request, response) => {
   const { username, name, password, gender, location } = request.body;
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const selectUserQuery = `SELECT * FROM user WHERE username = '${username}';`;
   const dbUser = await db.get(selectUserQuery);
+
   if (dbUser === undefined) {
     const createUserQuery = `INSERT INTO user(username, name, password, gender, location)
-        VALUES ('${username}, '${name}', '${hashedPassword}', '${gender}', ${location});`;
+        VALUES ('${username}, '${name}', '${hashedPassword}', '${gender}', '${location}');`;
+        
+        if (validatePassword(password)) {
+            await database.run(createUserQuery);
+            response.send("user created Successfully");
+        }
 
-    await database.run(createUserQuery);
-    response.send("user created Successfully");
+        else {
+            response.status(400);
+            response.send("Password is too short");
+        }
+        else{
+            response.status(400);
+            response.send("User already exists");
+        }
+});
+
+app.post("/login", async (request, response) => {
+  const { username, password } = request.body;
+  const selectUserQuery = `SELECT * FROM user WHERE username = '${username}';`;
+  const databaseUser = await database.get(selectUserQuery);
+
+  if (databaseUser === undefined) {
+    response.status(400);
+    response.send("Invalid user");
   } else {
-    response.send("User already exists");
+    const isPasswordMatched = await bcrypt.compare(
+      password,
+      databaseUser.password
+    );
+    if (isPasswordMatched === true) {
+      response.send("Login success!");
+    } else {
+      response.status(400);
+      response.send("Invalid password");
+    }
   }
 });
+
